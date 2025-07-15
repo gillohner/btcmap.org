@@ -13,6 +13,7 @@ export { default as AreaActivity } from '../components/AreaActivity.svelte';
 export { default as AreaLeaderboard } from '../components/leaderboard/AreaLeaderboard.svelte';
 export { default as AreaLeaderboardItemName } from '../components/leaderboard/AreaLeaderboardItemName.svelte';
 export { default as AreaMap } from '../components/AreaMap.svelte';
+export { default as AreaMeetups } from '../components/AreaMeetups.svelte';
 export { default as AreaMerchantHighlights } from '../components/AreaMerchantHighlights.svelte';
 export { default as AreaPage } from '../components/AreaPage.svelte';
 export { default as AreaStats } from '../components/AreaStats.svelte';

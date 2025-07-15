@@ -23,6 +23,7 @@
 	import {
 		AreaActivity,
 		AreaMap,
+		AreaMeetups,
 		AreaMerchantHighlights,
 		AreaStats,
 		AreaTickets,
@@ -77,7 +78,8 @@
 		merchants = 'Merchants',
 		stats = 'Stats',
 		activity = 'Activity',
-		maintain = 'Maintain'
+		maintain = 'Maintain',
+		meetups = 'Meetups'
 	}
 
 	const sections = Object.values(Sections);
@@ -409,5 +411,7 @@
 			loading={!dataInitialized}
 		/>
 		<AreaTickets tickets={data.tickets} title="{name || 'BTC Map Area'} Open Tickets" />
+	{:else if activeSection === Sections.meetups}
+		<AreaMeetups {name} />
 	{/if}
 </main>
