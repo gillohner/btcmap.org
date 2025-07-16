@@ -172,6 +172,7 @@
 			} else if (area['tips:url']) {
 				lightning = { destination: area['tips:url'], type: TipType.Url };
 			}
+			calendar_naddr = area['nostr:calendar_naddr'];
 		}
 
 		const rewoundPoly = rewind(area.geo_json, true);
@@ -274,6 +275,7 @@
 	let signal: string | undefined;
 	let simplex: string | undefined;
 	let lightning: { destination: string; type: TipType } | undefined;
+	let calendar_naddr: string | undefined;
 
 	let eventElements: ActivityEvent[] = [];
 	let taggers: User[] = [];
@@ -374,15 +376,17 @@
 		class="hide-scroll relative grid w-full auto-cols-[minmax(150px,_1fr)] grid-flow-col overflow-x-auto"
 	>
 		{#each sections as section, index (index)}
-			<button
-				on:click={() => (activeSection = section)}
-				class="border-b-4 pb-3 text-center text-lg text-link transition-colors hover:border-link {activeSection ===
-				section
-					? 'border-link font-bold'
-					: 'border-link/25'}"
-			>
-				{section}
-			</button>
+			{#if !(section === Sections.meetups && !calendar_naddr)}
+				<button
+					on:click={() => (activeSection = section)}
+					class="border-b-4 pb-3 text-center text-lg text-link transition-colors hover:border-link {activeSection ===
+					section
+						? 'border-link font-bold'
+						: 'border-link/25'}"
+				>
+					{section}
+				</button>
+			{/if}
 		{/each}
 
 		{#if !scrolled}
@@ -411,7 +415,7 @@
 			loading={!dataInitialized}
 		/>
 		<AreaTickets tickets={data.tickets} title="{name || 'BTC Map Area'} Open Tickets" />
-	{:else if activeSection === Sections.meetups}
-		<AreaMeetups {name} />
+	{:else if activeSection === Sections.meetups && calendar_naddr}
+		<AreaMeetups {calendar_naddr} />
 	{/if}
 </main>

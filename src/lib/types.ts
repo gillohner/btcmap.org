@@ -75,6 +75,7 @@ export type AreaTags = {
 	['contact:simplex']?: string;
 	['tips:lightning_address']?: string;
 	['tips:url']?: string;
+	['nostr:calendar_naddr']?: string;
 	sponsor?: boolean;
 	['box:north']?: string;
 	['box:east']?: string;
