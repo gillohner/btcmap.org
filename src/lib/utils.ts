@@ -7,6 +7,8 @@ import { get } from 'svelte/store';
 import rewind from '@mapbox/geojson-rewind';
 import { geoContains } from 'd3-geo';
 import DOMPurify from 'dompurify';
+import NDK, { NDKEvent, type NDKFilter } from '@nostr-dev-kit/ndk';
+import { decode } from 'nostr-tools/nip19';
 
 export const errToast = (m: string) => {
 	toast.push(m, {
@@ -204,3 +206,138 @@ export const formatOpeningHours = (str: string): string => {
 
 	return DOMPurify.sanitize(html, { ALLOWED_TAGS: ['span'] });
 };
+
+export async function fetchMeetups(
+	naddr: string,
+	relays: string[] = ['wss://relay.damus.io', 'wss://relay.snort.social', 'wss://relay.mostr.pub']
+): Promise<NDKEvent[]> {
+	console.log('fetchMeetups called with naddr:', naddr);
+
+	// 1. Decode the naddr → { pubkey, identifier, kind, relays? }
+	const { type, data } = decode(naddr) as {
+		type: 'naddr';
+		data: { pubkey: string; identifier: string; kind: number; relays?: string[] };
+	};
+	console.log('Decoded naddr:', { type, data });
+
+	if (type !== 'naddr') {
+		console.error('Invalid naddr type:', type);
+		return [];
+	}
+
+	const { pubkey, identifier } = data;
+
+	// 2. Bootstrap NDK
+	const relayUrls = Array.from(new Set([...(relays || []), ...(data.relays || [])]));
+	const ndk = new NDK({
+		explicitRelayUrls: relayUrls
+	});
+	console.log('Connecting to NDK with relays:', relayUrls);
+	ndk.connect();
+	console.log('NDK connected');
+
+	// 3. First, fetch the calendar (kind 31924) to get event references
+	const calendarSub = ndk.subscribe(
+		{
+			kinds: [31924 as any], // Calendar kind
+			authors: [pubkey],
+			'#d': [identifier] // Calendar identifier
+		},
+		{ closeOnEose: true }
+	);
+
+	const calendar = await new Promise<NDKEvent | null>((resolve) => {
+		let calendarEvent: NDKEvent | null = null;
+		calendarSub.on('event', (ev) => {
+			console.log('Received calendar event:', ev);
+			calendarEvent = ev;
+		});
+		calendarSub.on('eose', () => {
+			console.log('Calendar subscription ended. Found calendar:', !!calendarEvent);
+			resolve(calendarEvent);
+		});
+	});
+
+	if (!calendar) {
+		console.log('No calendar found');
+		return [];
+	}
+
+	// 4. Extract 'a' tags from the calendar to get event references
+	const allATags = calendar.tags.filter((tag) => tag[0] === 'a').map((tag) => tag[1]);
+	console.log('All a tags:', allATags);
+
+	const eventRefs = allATags.filter((ref) => {
+		if (!ref) return false;
+		// Check if the reference starts with the event kinds we're looking for
+		const isEvent = ref.startsWith('31922:') || ref.startsWith('31923:') || ref.startsWith('31925:');
+		console.log(`Checking ref "${ref}": ${isEvent}`);
+		return isEvent;
+	});
+
+	console.log('Found event references:', eventRefs);
+
+	if (eventRefs.length === 0) {
+		console.log('No event references found in calendar');
+		return [];
+	}
+
+	// 5. Build filters for the referenced events
+	const eventFilters: NDKFilter[] = eventRefs.map((ref) => {
+		const [kind, author, dTag] = ref.split(':');
+		return {
+			kinds: [parseInt(kind) as any],
+			authors: [author],
+			'#d': [dTag]
+		};
+	});
+
+	// 6. Fetch all referenced events
+	const eventsSub = ndk.subscribe(eventFilters, { closeOnEose: true });
+
+	const events = await new Promise<NDKEvent[]>((resolve) => {
+		const evs: NDKEvent[] = [];
+		eventsSub.on('event', (ev) => {
+			console.log('Received event:', ev);
+			evs.push(ev);
+		});
+		eventsSub.on('eose', () => {
+			console.log('Events subscription ended. Found events:', evs.length);
+			resolve(evs);
+		});
+	});
+
+	// 7. Filter for future events only and sort by start date
+	const now = Math.floor(Date.now() / 1000);
+	const futureEvents = events.filter((ev) => {
+		const startTag = ev.tagValue('start');
+		if (!startTag) return false;
+
+		// Handle both timestamp and ISO date formats
+		const startTime = isNaN(Number(startTag))
+			? Math.floor(new Date(startTag).getTime() / 1000)
+			: parseInt(startTag);
+
+		return startTime > now;
+	});
+
+	// 8. Sort by start date (earliest first)
+	futureEvents.sort((a, b) => {
+		const aStart = getEventStartTime(a);
+		const bStart = getEventStartTime(b);
+		return aStart - bStart;
+	});
+
+	console.log('Returning future events:', futureEvents.length);
+	return futureEvents;
+}
+
+function getEventStartTime(event: NDKEvent): number {
+	const startTag = event.tagValue('start');
+	if (!startTag) return event.created_at || 0;
+
+	// Handle both timestamp and ISO date formats
+	return isNaN(Number(startTag))
+		? Math.floor(new Date(startTag).getTime() / 1000)
+		: parseInt(startTag);
+}

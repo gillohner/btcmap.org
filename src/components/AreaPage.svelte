@@ -86,6 +86,9 @@
 	let activeSection = Sections.merchants;
 	let scrolled = false;
 
+	// Debug reactive statement
+	$: console.log('Active section changed to:', activeSection, 'calendar_naddr:', calendar_naddr);
+
 	let dataInitialized = false;
 
 	const initializeData = () => {
@@ -173,6 +176,11 @@
 				lightning = { destination: area['tips:url'], type: TipType.Url };
 			}
 			calendar_naddr = area['nostr:calendar_naddr'];
+			console.log('Original calendar_naddr from area:', calendar_naddr);
+			// TODO: Remove DEBUG
+			calendar_naddr =
+				'naddr1qqyrsdeevfskxvfjqydhwumn8ghj7mn0wd68ytnnwa5hxuedv4hxjemdvyhxx6qzyzym2fnu9uvw04mq5lyzjwvat5x6jgaksl2nagn2dlf45ac0nxhqzqcyqqq8edqr02a67';
+			console.log('Debug calendar_naddr set to:', calendar_naddr);
 		}
 
 		const rewoundPoly = rewind(area.geo_json, true);
@@ -415,7 +423,25 @@
 			loading={!dataInitialized}
 		/>
 		<AreaTickets tickets={data.tickets} title="{name || 'BTC Map Area'} Open Tickets" />
-	{:else if activeSection === Sections.meetups && calendar_naddr}
-		<AreaMeetups {calendar_naddr} />
+	{:else if activeSection === Sections.meetups}
+		{#if calendar_naddr}
+			<AreaMeetups {calendar_naddr} />
+		{:else}
+			<div class="w-full rounded-3xl border border-statBorder dark:bg-white/10">
+				<h3
+					class="border-b border-statBorder p-5 text-center text-lg font-semibold text-primary dark:text-white md:text-left"
+				>
+					{name || 'BTC Map Area'} Meetups
+				</h3>
+				<div class="p-5">
+					<p class="text-center text-body dark:text-white">
+						No meetup calendar configured for this area.
+					</p>
+					<p class="mt-2 text-center text-sm text-body dark:text-white">
+						Debug: calendar_naddr = {calendar_naddr || 'undefined'}
+					</p>
+				</div>
+			</div>
+		{/if}
 	{/if}
 </main>
