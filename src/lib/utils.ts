@@ -270,7 +270,8 @@ export async function fetchMeetups(
 	const eventRefs = allATags.filter((ref) => {
 		if (!ref) return false;
 		// Check if the reference starts with the event kinds we're looking for
-		const isEvent = ref.startsWith('31922:') || ref.startsWith('31923:') || ref.startsWith('31925:');
+		const isEvent =
+			ref.startsWith('31922:') || ref.startsWith('31923:') || ref.startsWith('31925:');
 		console.log(`Checking ref "${ref}": ${isEvent}`);
 		return isEvent;
 	});
